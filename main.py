@@ -1,10 +1,11 @@
+import sys
+import numpy
+import ctypes
+import time
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
-import sys
-import numpy
-import ctypes
 
 import raycl
 
@@ -12,6 +13,11 @@ class window(object):
     def __init__(self, *args, **kwargs):
         self.width = 640
         self.height = 480
+
+        self.tex_w = 512
+        self.tex_h = 512
+
+        self.count_to_30 = 0
 
         glutInit(sys.argv)
         glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH)
@@ -33,15 +39,22 @@ class window(object):
         self.glinit()
 
         self.texture = self.create_blank_texture()
-        self.raycl = raycl.raycl(self.texture)
+        self.raycl = raycl.raycl(self.texture, self.tex_w, self.tex_h)
 
     def create_blank_texture(self):
+        tex_buf = (ctypes.c_char_p(
+            # initial value:
+            "\x88" * (4*self.tex_w*self.tex_h)))
+
         texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, texture)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 512, 512, 0, GL_RGBA,
-            GL_FLOAT, (ctypes.c_char_p("\x88" * (4*512*512))))
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
+            self.tex_w, self.tex_h, 0, GL_RGBA,
+            GL_FLOAT, tex_buf)
+
         return texture
 
     def glinit(self):
@@ -69,6 +82,9 @@ class window(object):
 
     # draw stuff
     def draw(self):
+        if self.count_to_30 == 0:
+            self.time_start = time.time()
+            
         self.raycl.execute()
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -79,6 +95,19 @@ class window(object):
         #self.draw_axes()
 
         glutSwapBuffers()
+
+        self.count_frame()
+
+    def count_frame(self):
+        self.count_to_30 += 1
+        if self.count_to_30 >= 30:
+            self.count_to_30 = 0
+            
+            dt = time.time() - self.time_start
+
+            fps = 30 / dt
+
+            print "%f fps" % fps
 
     def draw_texture(self):
         glEnable(GL_TEXTURE_2D)

@@ -5,7 +5,10 @@ from OpenGL import GLX
 import pyopencl as cl
 
 class raycl(object):
-    def __init__(self, texture):
+    def __init__(self, texture, tex_w, tex_h):
+        self.tex_w = tex_w
+        self.tex_h = tex_h
+
         self.clinit()
         self.loadProgram("raycl.cl")
 
@@ -43,7 +46,7 @@ class raycl(object):
         glFinish()
         cl.enqueue_acquire_gl_objects(self.queue, self.gl_objects)
 
-        global_size = (512,512)
+        global_size = (self.tex_w, self.tex_h)
         local_size = None
 
         kernelargs = (self.tex,)
