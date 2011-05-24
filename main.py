@@ -40,15 +40,15 @@ class window(object):
         glBindTexture(GL_TEXTURE_2D, texture)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-        glTexImage2D(GL_TEXTURE_2D, 0, 4, 512, 512, 0, GL_RGBA,
-            GL_UNSIGNED_BYTE, ctypes.c_void_p(0))
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 512, 512, 0, GL_RGBA,
+            GL_FLOAT, (ctypes.c_char_p("\x88" * (4*512*512))))
         return texture
 
     def glinit(self):
         glViewport(0, 0, self.width, self.height)
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
-        gluOrtho2D(-1, 1, -1, 1)
+        gluOrtho2D(-1, 1, 1, -1)
         glMatrixMode(GL_MODELVIEW)
 
     # Callbacks
@@ -71,14 +71,12 @@ class window(object):
     def draw(self):
         self.raycl.execute()
 
-        glFlush()
-
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
 
         self.draw_texture()
-        self.draw_axes()
+        #self.draw_axes()
 
         glutSwapBuffers()
 

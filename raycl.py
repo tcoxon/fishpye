@@ -10,7 +10,7 @@ class raycl(object):
         self.loadProgram("raycl.cl")
 
         self.tex = cl.GLTexture(
-            self.ctx, cl.mem_flags.WRITE_ONLY,
+            self.ctx, cl.mem_flags.READ_WRITE,
             GL_TEXTURE_2D, 0,
             texture, 2)
 
@@ -40,6 +40,7 @@ class raycl(object):
         self.program = cl.Program(self.ctx, code).build()
 
     def execute(self):
+        glFinish()
         cl.enqueue_acquire_gl_objects(self.queue, self.gl_objects)
 
         global_size = (512,512)
@@ -51,4 +52,5 @@ class raycl(object):
             *kernelargs)
 
         cl.enqueue_release_gl_objects(self.queue, self.gl_objects)
+        self.queue.flush()
         self.queue.finish()
