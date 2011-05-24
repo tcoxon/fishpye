@@ -1,3 +1,5 @@
+import sys
+
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL import GLX
@@ -10,7 +12,10 @@ class raycl(object):
         self.tex_h = tex_h
 
         self.clinit()
-        self.loadProgram("raycl.cl")
+        if len(sys.argv) > 1:
+            self.loadProgram(sys.argv[1])
+        else:
+            self.loadProgram("gradient.cl")
 
         self.tex = cl.GLTexture(
             self.ctx, cl.mem_flags.READ_WRITE,
