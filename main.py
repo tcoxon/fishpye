@@ -8,14 +8,14 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
 import raycl
+import world
 
 class window(object):
     def __init__(self, *args, **kwargs):
         self.width = 640
         self.height = 480
 
-        self.tex_w = 512
-        self.tex_h = 512
+        self.tex_dim = (512,512)
 
         self.count_to_30 = 0
 
@@ -35,16 +35,21 @@ class window(object):
         # call draw every 30 ms
         glutTimerFunc(30, self.timer, 30)
 
-        # seupt OpenGL scene
+        # set up OpenGL scene
         self.glinit()
 
+        # set up world for the game
+        self.world = world.world()
+
+        # set up display texture and opencl
         self.texture = self.create_blank_texture()
-        self.raycl = raycl.raycl(self.texture, self.tex_w, self.tex_h)
+        self.raycl = raycl.raycl(self.texture, self.tex_dim,
+            self.world)
 
     def create_blank_texture(self):
         tex_buf = (ctypes.c_char_p(
             # initial value:
-            "\x88" * (4*self.tex_w*self.tex_h)))
+            "\x88" * (4*self.tex_dim[0]*self.tex_dim[1])))
 
         texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, texture)
@@ -52,7 +57,7 @@ class window(object):
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
 
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
-            self.tex_w, self.tex_h, 0, GL_RGBA,
+            self.tex_dim[0], self.tex_dim[1], 0, GL_RGBA,
             GL_FLOAT, tex_buf)
 
         return texture

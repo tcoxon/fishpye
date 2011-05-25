@@ -1,21 +1,20 @@
 import sys
+import numpy
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL import GLX
-
 import pyopencl as cl
 
 class raycl(object):
-    def __init__(self, texture, tex_w, tex_h):
-        self.tex_w = tex_w
-        self.tex_h = tex_h
+    def __init__(self, texture, tex_dim, world):
+        self.tex_dim = tex_dim
+        self.world = world
 
         self.clinit()
-        if len(sys.argv) > 1:
-            self.loadProgram(sys.argv[1])
-        else:
-            self.loadProgram("gradient.cl")
+        self.loadProgram("raytrace.cl")
+
+        world.init_cldata(self.ctx)
 
         self.tex = cl.GLTexture(
             self.ctx, cl.mem_flags.READ_WRITE,
@@ -51,12 +50,18 @@ class raycl(object):
         glFinish()
         cl.enqueue_acquire_gl_objects(self.queue, self.gl_objects)
 
-        global_size = (self.tex_w, self.tex_h)
+        global_size = self.tex_dim
         local_size = None
+        world = self.world
 
-        kernelargs = (self.tex,)
+        kernelargs = (self.tex,
+                      numpy.uint8(world.x_size),
+                      numpy.uint8(world.y_size),
+                      numpy.uint8(world.z_size),
+                      numpy.uint8(world.edge_type),
+                      world.grid_clbuf)
 
-        self.program.raycl(self.queue, global_size, local_size,
+        self.program.raytrace(self.queue, global_size, local_size,
             *kernelargs)
 
         cl.enqueue_release_gl_objects(self.queue, self.gl_objects)
