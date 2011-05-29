@@ -14,6 +14,8 @@ class window(object):
     def __init__(self, *args, **kwargs):
         self.width = 640
         self.height = 480
+        self.cx = self.width / 2
+        self.cy = self.height / 2
 
         self.tex_dim = (512,512)
 
@@ -28,9 +30,11 @@ class window(object):
         glutDisplayFunc(self.draw)
 
         # handle input
+        self.skip_first_motion = True
+        glutEntryFunc(self.on_mouse_enter)
         glutKeyboardFunc(self.on_key)
         glutMouseFunc(self.on_click)
-        glutMotionFunc(self.on_mouse_motion)
+        glutPassiveMotionFunc(self.on_mouse_motion)
 
         # call draw every 30 ms
         glutTimerFunc(30, self.timer, 30)
@@ -69,21 +73,38 @@ class window(object):
         gluOrtho2D(-1, 1, 1, -1)
         glMatrixMode(GL_MODELVIEW)
 
+    def reset_pointer(self):
+        glutWarpPointer(self.cx ,#+ glutGet(GLUT_WINDOW_X),
+                        self.cy )#+ glutGet(GLUT_WINDOW_Y))
+
     # Callbacks
     def timer(self, t):
         glutTimerFunc(t, self.timer, t)
         glutPostRedisplay()
 
-    def on_key(self, *args):
+    def on_key(self, key, x, y):
         ESCAPE = '\033'
-        if args[0] == ESCAPE or args[0] == 'q':
+        if key == ESCAPE or key == 'q':
             sys.exit()
+        else:
+            self.world.send_key(key, x, y)
 
     def on_click(self, button, state, x, y):
-        pass
+        self.world.send_click(button, state, x, y)
 
     def on_mouse_motion(self, x, y):
-        pass
+        if x != self.cx and y != self.cy:
+            if not self.skip_first_motion:
+                self.world.send_mouse_motion(x - self.cx, y - self.cy)
+            else:
+                self.skip_first_motion = False
+            self.reset_pointer()
+
+    def on_mouse_enter(self, state):
+        if state == GLUT_ENTERED:
+            self.reset_pointer()
+            glutSetCursor(GLUT_CURSOR_NONE)
+            self.skip_first_motion = True
 
     # draw stuff
     def draw(self):
@@ -97,7 +118,8 @@ class window(object):
         glLoadIdentity()
 
         self.draw_texture()
-        #self.draw_axes()
+        if self.count_to_30 < 15:
+            self.draw_axes()
 
         glutSwapBuffers()
 

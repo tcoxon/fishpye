@@ -59,6 +59,11 @@ class raycl(object):
                       numpy.uint8(world.y_size),
                       numpy.uint8(world.z_size),
                       numpy.uint8(world.edge_type),
+                      numpy.float32(world.camera.rot_x),
+                      numpy.float32(world.camera.rot_y),
+                      numpy.float32(world.camera.x),
+                      numpy.float32(world.camera.y),
+                      numpy.float32(world.camera.z),
                       world.grid_clbuf)
 
         self.program.raytrace(self.queue, global_size, local_size,
