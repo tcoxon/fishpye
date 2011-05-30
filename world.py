@@ -44,7 +44,7 @@ class camera(object):
         if self.world.legal_z(nextZ):
             self.z = nextZ
 
-        #print "(%d,%d,%d)" % (int(self.x), int(self.y), int(self.z))
+        #print "pos = (%f, %f, %f)" % (self.x, self.y, self.z)
 
     def on_click(self, button, state, x, y):
         pass
@@ -58,6 +58,8 @@ class camera(object):
             self.rot_y = -math.pi/2
         elif self.rot_y > math.pi/2:
             self.rot_y = math.pi/2
+
+        #print "rot = (%f, %f)" % (self.rot_x, self.rot_y)
 
 class world(object):
 

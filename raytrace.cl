@@ -37,34 +37,38 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
     /* Screen pixel position: */
     int2 p_pos = (int2)(get_global_id(0), get_global_id(1));
 
-    /* Camera position: */
-    float4 c_pos = (float4)(cam_x, cam_y, cam_z, 0.0f);
-
     /* Grid dimensions */
     uchar4 bounds = (uchar4)(x_size, y_size, z_size, 0);
 
-    float2 ray_rot = (float2)((p_pos.x * M_PI_2) / SCREEN_W - M_PI_4
-                                + rot_x,
-                              (p_pos.y * M_PI_2) / SCREEN_H - M_PI_4
-                                + rot_y);
-    float2 ray_rot_sin = sin(ray_rot),
-           ray_rot_cos = cos(ray_rot);
+    float4 ray_rot = (float4)(rot_x, rot_y,
+                              (p_pos.x * M_PI_2) / SCREEN_W - M_PI_4,
+                              (p_pos.y * M_PI_2) / SCREEN_H - M_PI_4);
+    float4 rot_sin = sin(ray_rot),
+           rot_cos = cos(ray_rot);
 
     /* Voxel traversal ray-tracing algorithm based on John Amanatides'
        and Andrew Woo's paper. */
     
-    // v is the unit vector along the ray
-    float4 v = (float4)(ray_rot_cos.y * ray_rot_sin.x,
-                        -ray_rot_sin.y,
-                        ray_rot_cos.y * ray_rot_cos.x,
+    /* n is the vector of the ray as if the camera was looking directly
+       down the z-axis without any rotation around it. */
+    float4 n = (float4)(rot_cos.w * rot_sin.z,
+                        -rot_sin.w,
+                        rot_cos.w * rot_cos.z,
                         0.0f);
+    
+    // v is the unit vector along the ray
+    float4 v = (float4)(
+      n.x*rot_cos.x + n.y*rot_sin.x*rot_sin.y + n.z*rot_sin.x*rot_cos.y,
+      n.y*rot_cos.y - n.z*rot_sin.y,
+      -n.x*rot_sin.x + n.y*rot_cos.x*rot_sin.y + n.z*rot_cos.x*rot_cos.y,
+      0.0f);
 
     /* u is the starting point of the ray */
-    float4 u = (float4)(c_pos.x, c_pos.y, c_pos.z, 0.0f);
+    float4 u = (float4)(cam_x, cam_y, cam_z, 0.0f);
     // Thus equation of the ray = u + vt
 
     // P = (X,Y,Z) = current voxel coordinates
-    int4 P = (int4)((int)c_pos.x, (int)c_pos.y, (int)c_pos.z, 0);
+    int4 P = (int4)((int)u.x, (int)u.y, (int)u.z, 0);
     // TODO handle P being outside bounds of grid
 
     /* step = (stepX, stepY, stepZ) = values are either 1, 0, or -1.
@@ -156,21 +160,6 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
         if (outside || block_type != BK_AIR)
             break;
 
-        if (P.x < 0 || P.x >= x_size) {
-            ray_color.x = 1.0f;
-            ray_color.w = 1.0f;
-        }
-        if (P.y < 0 || P.y >= y_size) {
-            ray_color.y = 1.0f;
-            ray_color.w = 1.0f;
-        }
-        if (P.z < 0 || P.z >= z_size) {
-            ray_color.z = 1.0f;
-            ray_color.w = 1.0f;
-        }
-        if (ray_color.w != 0.0f) {
-            break;
-        }
     }
 
     write_imagef(bmp, p_pos, ray_color);
