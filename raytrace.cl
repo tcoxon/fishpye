@@ -29,6 +29,9 @@
 #define GRID_GET(grid,x,y,z) ((grid)[x + y*x_size + z*x_size*y_size])
 #define GRID_GETV(grid,v) GRID_GET((grid), (v).x,(v).y,(v).z)
 
+/* Given X, it returns X if X is positive, or 0 otherwise */
+#define POSITIVE(X) ((X) > 0 ? (X) : 0)
+
 __kernel void raytrace(__write_only __global image2d_t bmp,
     uchar x_size, uchar y_size, uchar z_size, uchar edge_type,
     float rot_x, float rot_y, float cam_x, float cam_y, float cam_z,
@@ -78,9 +81,9 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
 
     /* tmax = (tmaxX, tmaxY, tmaxZ) = values of t at which ray next
        crosses a voxel boundary in the respective direction */
-    float4 tmax = (float4)((P.x + step.x - u.x)/v.x,
-                           (P.y + step.y - u.y)/v.y,
-                           (P.z + step.z - u.z)/v.z,
+    float4 tmax = (float4)((P.x + POSITIVE(step.x) - u.x)/v.x,
+                           (P.y + POSITIVE(step.y) - u.y)/v.y,
+                           (P.z + POSITIVE(step.z) - u.z)/v.z,
                            0.0f);
 
     /* dt = (dtX, dtY, dtZ) = how far along ray (in units of t) we must
