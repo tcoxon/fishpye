@@ -32,7 +32,9 @@ class window(object):
         # handle input
         self.skip_first_motion = True
         glutEntryFunc(self.on_mouse_enter)
-        glutKeyboardFunc(self.on_key)
+        glutIgnoreKeyRepeat(1)
+        glutKeyboardFunc(self.on_key_down)
+        glutKeyboardUpFunc(self.on_key_up)
         glutMouseFunc(self.on_click)
         glutPassiveMotionFunc(self.on_mouse_motion)
 
@@ -74,8 +76,7 @@ class window(object):
         glMatrixMode(GL_MODELVIEW)
 
     def reset_pointer(self):
-        glutWarpPointer(self.cx ,#+ glutGet(GLUT_WINDOW_X),
-                        self.cy )#+ glutGet(GLUT_WINDOW_Y))
+        glutWarpPointer(self.cx, self.cy)
 
     # Callbacks
     def timer(self, t):
@@ -83,12 +84,15 @@ class window(object):
         self.world.advance(t)
         glutPostRedisplay()
 
-    def on_key(self, key, x, y):
+    def on_key_down(self, key, x, y):
         ESCAPE = '\033'
         if key == ESCAPE or key == 'q':
             sys.exit()
         else:
-            self.world.send_key(key, x, y)
+            self.world.send_key_down(key, x, y)
+
+    def on_key_up(self, key, x, y):
+        self.world.send_key_up(key, x, y)
 
     def on_click(self, button, state, x, y):
         self.world.send_click(button, state, x, y)
