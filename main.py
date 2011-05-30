@@ -17,7 +17,7 @@ class window(object):
         self.cx = self.width / 2
         self.cy = self.height / 2
 
-        self.tex_dim = (512,512)
+        self.tex_dim = (640,480)
 
         self.count_to_30 = 0
 

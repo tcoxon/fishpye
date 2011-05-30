@@ -1,6 +1,6 @@
 /* Size of the texture currently hard-coded */
-#define SCREEN_H 512
-#define SCREEN_W 512
+#define SCREEN_W 640
+#define SCREEN_H 480
 
 /* With the current algorithm, this is the maximum number of voxels to
    traverse */
