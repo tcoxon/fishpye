@@ -138,8 +138,7 @@ class world(object):
         # Create 3D matrix of bytes to use as the grid
         self.grid = numpy.zeros(shape=self.world_shape,
             dtype=numpy.uint8, order='F')
-        for i in xrange(1, 15, 2):
-            self.grid[5][i][5] = BK_WALLG
+        self.setup_grid()
 
         # What to display at the end of the world
         self.edge_type = ET_WALL
@@ -153,6 +152,29 @@ class world(object):
             cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
             size=(self.x_size * self.y_size * self.z_size),
             hostbuf=self.grid)
+
+    def setup_grid(self):
+        # Create alternating column of air and green blocks
+        for i in xrange(1, 16, 2):
+            self.grid[5][i][5] = BK_WALLG
+
+        ## Build a house in the x=32,z=0 corner
+        # Wall facing +z
+        for x in xrange(25,32):
+            for y in xrange(0,5):
+                # with a window:
+                if x != 27 or y != 1:
+                    self.grid[x][y][5] = BK_WALL
+        # Ceiling
+        for x in xrange(25,32):
+            for z in xrange(0,5):
+                self.grid[x][5][z] = BK_WALL
+        # Front:
+        for z in xrange(0,6):
+            for y in xrange(0,5):
+                # with a door:
+                if z != 2 or y > 1:
+                    self.grid[24][y][z] = BK_WALL
 
     def legal_x(self, x):
         return x >= 0.0 and x < self.x_size
