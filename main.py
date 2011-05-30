@@ -80,6 +80,7 @@ class window(object):
     # Callbacks
     def timer(self, t):
         glutTimerFunc(t, self.timer, t)
+        self.world.advance(t)
         glutPostRedisplay()
 
     def on_key(self, key, x, y):

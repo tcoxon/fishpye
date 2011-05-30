@@ -14,6 +14,10 @@ BK_AIR = 0
 BK_WALL = 1
 BK_WALLG = 2
 
+# Camera field-of-view modes
+FOV_DEFAULT = math.pi/2
+FOV_360 = 2*math.pi
+
 class camera(object):
     def __init__(self, world):
         self.world = world
@@ -23,6 +27,30 @@ class camera(object):
         self.x = 0.5
         self.y = 1.5
         self.z = 0.5
+        self.fov = FOV_DEFAULT
+        # For transitions:
+        self.prev_fov = self.fov
+        self.target_fov = self.fov
+        self.fov_trans_count = 0
+
+    def advance(self, t):
+        # Advance FOV transition:
+        if self.fov != self.target_fov:
+            self.fov_trans_count += t
+        if self.fov_trans_count >= 1000:
+            # takes 1000ms to complete transition
+            self.fov = self.target_fov
+            self.prev_fov = self.fov
+            self.fov_trans_count = 0
+        else:
+            self.fov = (self.prev_fov + self.fov_trans_count *
+                (self.target_fov-self.prev_fov)/1000)
+
+    def fov_x(self):
+        return self.fov
+
+    def fov_y(self):
+        return self.fov if self.fov <= math.pi else math.pi
 
     def on_key(self, key, _x, _y):
         nextX = self.x
@@ -38,6 +66,13 @@ class camera(object):
             nextZ += dist * math.sin(self.rot_x)
         elif key == ' ':
             self.y += 1.0
+        elif key == 'n':
+            self.y -= 1.0
+        elif key == 'o':
+            if self.fov == FOV_DEFAULT:
+                self.target_fov = FOV_360
+            elif self.fov == FOV_360:
+                self.target_fov = FOV_DEFAULT
 
         if self.world.legal_x(nextX):
             self.x = nextX
@@ -78,6 +113,7 @@ class world(object):
 
         self.camera = camera(self)
         self.controllables = [self.camera]
+        self.entities = [self.camera]
 
     def init_cldata(self, ctx):
         self.grid_clbuf = cl.Buffer(ctx,
@@ -89,6 +125,11 @@ class world(object):
         return x >= 0.0 and x < self.x_size
     def legal_z(self, z):
         return z >= 0.0 and z < self.z_size
+
+    def advance(self, t):
+        """ Advance the world t ms """
+        for e in self.entities:
+            e.advance(t)
 
     ## These three functions (send_*) send input information to
     ## controllable items in the world (e.g. the camera)

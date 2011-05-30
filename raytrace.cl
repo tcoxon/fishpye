@@ -32,7 +32,7 @@
 __kernel void raytrace(__write_only __global image2d_t bmp,
     uchar x_size, uchar y_size, uchar z_size, uchar edge_type,
     float rot_x, float rot_y, float cam_x, float cam_y, float cam_z,
-    __constant uchar *grid)
+    float fov_x, float fov_y, __constant uchar *grid)
 {
     /* Screen pixel position: */
     int2 p_pos = (int2)(get_global_id(0), get_global_id(1));
@@ -41,8 +41,8 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
     uchar4 bounds = (uchar4)(x_size, y_size, z_size, 0);
 
     float4 ray_rot = (float4)(rot_x, rot_y,
-                              (p_pos.x * M_PI_2) / SCREEN_W - M_PI_4,
-                              (p_pos.y * M_PI_2) / SCREEN_H - M_PI_4);
+                              (p_pos.x * fov_x) / SCREEN_W - fov_x/2,
+                              (p_pos.y * fov_y) / SCREEN_H - fov_y/2);
     float4 rot_sin = sin(ray_rot),
            rot_cos = cos(ray_rot);
 
@@ -56,7 +56,7 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
                         rot_cos.w * rot_cos.z,
                         0.0f);
     
-    // v is the unit vector along the ray
+    // v is the unit vector along the ray in actual world coords
     float4 v = (float4)(
       n.x*rot_cos.x + n.y*rot_sin.x*rot_sin.y + n.z*rot_sin.x*rot_cos.y,
       n.y*rot_cos.y - n.z*rot_sin.y,
