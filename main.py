@@ -36,8 +36,8 @@ class window(object):
         glutMouseFunc(self.on_click)
         glutPassiveMotionFunc(self.on_mouse_motion)
 
-        # call draw every 30 ms
-        glutTimerFunc(30, self.timer, 30)
+        # Limit to 50fps
+        glutTimerFunc(20, self.timer, 20)
 
         # set up OpenGL scene
         self.glinit()
