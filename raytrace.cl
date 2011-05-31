@@ -7,12 +7,12 @@
 #define LOOP_LIMIT 100
 
 /* Colors for the various sides of wall blocks */
-#define WALL_UNDER ((float4)(0.3,0.5,0.5,1.0))
-#define WALL_SIDE  ((float4)(0.45,0.75,0.75,1.0))
-#define WALL_TOP   ((float4)(0.6,1.0,1.0,1.0))
-#define WALLG_UNDER ((float4)(0.3,0.5,0.4,1.0))
-#define WALLG_SIDE  ((float4)(0.45,0.75,0.45,1.0))
-#define WALLG_TOP   ((float4)(0.6,1.0,0.6,1.0))
+#define COLOR_WALL  ((float4)(0.45,0.75,0.75,1.0))
+#define COLOR_WALLG  ((float4)(0.45,0.75,0.45,1.0))
+
+/* Multipliers for calculating shading on block faces */
+#define LIGHTEN (4.0/3.0)
+#define DARKEN (2.0/3.0)
 
 /* Edge types - what appears at the end of the grid */
 #define ET_WALL         0
@@ -40,6 +40,14 @@ typedef struct ray_t {
     char4 last_step;
 } ray_t;
 
+/* `shading' values > 1.0 brighten, < 1.0 darken. */
+float4 color_mix_shade(float4 color, float shading) {
+    return (float4)(fmin(color.x * shading, 1.0f),
+                    fmin(color.y * shading, 1.0f),
+                    fmin(color.z * shading, 1.0f),
+                    color.w);
+}
+
 /* Returns new ray_color. Halts ray if alpha is 1.0f */
 float4 color_ray(world_t w, ray_t r)
 {
@@ -60,24 +68,23 @@ float4 color_ray(world_t w, ray_t r)
 
     float4 new_ray_color = r.ray_color;
 
-    if (block_type == BK_WALL) {
-        if (r.last_step.y == 0) {
-            // viewing block from side
-            new_ray_color = WALL_SIDE;
-        } else if (r.last_step.y == -1) {
-            // viewing block from above
-            new_ray_color = WALL_TOP;
-        } else {
-            // viewing block from below
-            new_ray_color = WALL_UNDER;
+    if (block_type != BK_AIR) {
+        switch (block_type) {
+        case BK_WALL:
+            new_ray_color = COLOR_WALL;
+            break;
+        case BK_WALLG:
+            new_ray_color = COLOR_WALLG;
+            break;
         }
-    } else if (block_type == BK_WALLG) {
-        if (r.last_step.y == 0)
-            new_ray_color = WALLG_SIDE;
-        else if (r.last_step.y == -1)
-            new_ray_color = WALLG_TOP;
-        else
-            new_ray_color = WALLG_UNDER;
+
+        if (r.last_step.y == -1) {
+            // viewing block from above
+            new_ray_color = color_mix_shade(new_ray_color, LIGHTEN);
+        } else if (r.last_step.y == 1) {
+            // viewing block from below
+            new_ray_color = color_mix_shade(new_ray_color, DARKEN);
+        }
     }
 
     return new_ray_color;
