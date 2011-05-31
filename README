@@ -19,3 +19,14 @@ TODO:
    * Self-viewing / entity rendering
    * Make into a game
 
+Handy links:
+   * OpenCL 1.1 Reference
+       http://www.khronos.org/registry/cl/sdk/1.1/docs/man/xhtml/
+   * PyOpenCL Documentation
+       http://documen.tician.de/pyopencl/runtime.html
+   * OpenGL 2.1 Reference Pages
+       http://www.opengl.org/sdk/docs/man/
+   * Voxel Traversal Algorithm - J Amanatides and A Woo
+       http://www.cs.yorku.ca/~amana/research/grid.pdf
+
+
