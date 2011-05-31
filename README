@@ -1,0 +1,21 @@
+raycl
+-----
+
+A (currently) non-recursive real-time raytracer in Python, OpenCL and OpenGL.
+
+Currently tested on a beefy NVIDIA GTX 570. Lesser cards may suffer.
+
+TODO:
+   * Think up better name
+   * Document dependencies
+   * Give block discernible edges
+      * Perhaps via lighting?
+         * Light-source grid blocks?
+         * Small number of non-grid light sources (like entities)
+         * Reuse camera as a light-source
+            * Angle of ray on the surface would determine lighting level.
+   * Gravity / physics
+   * Portals / mirrors
+   * Self-viewing / entity rendering
+   * Make into a game
+
