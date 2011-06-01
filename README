@@ -8,8 +8,9 @@ Currently tested on a beefy NVIDIA GTX 570. Lesser cards may suffer.
 Controls:
    * WASD to move around
    * Mouse to control camera
+   * P to toggle physics
    * Space to go up
-   * N to go down
+   * N to go down (with physics off)
    * O to change field of view
 
 Notes:
@@ -26,6 +27,7 @@ TODO:
    * Think up better name
    * Document dependencies
    * Gravity / physics
+      * legal_move() needs to be aware that not all objects are points
    * Portals / mirrors
    * Self-viewing / entity rendering
    * Make into a game

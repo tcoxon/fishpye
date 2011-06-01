@@ -20,6 +20,13 @@ FOV_360 = 2*math.pi
 
 # Speed of movement of the camera
 WALK_SPEED = 4.0 # m/s
+JUMP_VELOCITY = 6.0 # m/s
+
+def blocking(block_type):
+    return block_type != BK_AIR
+
+def v(x,y,z):
+    return numpy.array([x,y,z])
 
 class world_object(object):
     def __init__(self, world):
@@ -41,26 +48,55 @@ class world_object(object):
         y = y + dist
         return y
     def try_move(self,x,y,z):
-        moved = False
-        # TODO what if the edge type is ET_PORTAL_TORUS
-        if x != self.x and self.world.legal_x(x):
-            self.x = x
-            moved = True
-        if z != self.z and self.world.legal_z(z):
-            self.z = z
-            moved = True
-        if y != self.y and self.world.legal_y(y):
-            self.y = y
-            moved = True
-        #if moved:
-        #    print "pos = (%f, %f, %f)" % (self.x, self.y, self.z)
+        (self.x,self.y,self.z) = self.world.legal_move(self,x,y,z)
 
 class physical_object(world_object):
-    # TODO implement physics
-    pass
+    def __init__(self, world, hover_height, radius):
+        world_object.__init__(self, world)
+        self.hover_height = hover_height
+        self.radius = radius
+        # Gravity belongs to the object. This way we can have crazy
+        # physics fun with portals changing the direction of gravity
+        self.gravity = v(0.0, -10.0, 0.0)
+        self.vel = v(0.0,0.0,0.0)
+        self.supported = False
+    
+    def physically_supported(self):
+        return self.supported
+
+    def advance(self, t):
+        #world_object.advance(self, t)
+
+        if self.world.physics_on:
+            self.vel += self.gravity * t / 1000.0
+
+            (nx,ny,nz) = (self.x, self.y, self.z)
+            nx += self.vel[0] * t / 1000.0
+            ny += self.vel[1] * t / 1000.0
+            nz += self.vel[2] * t / 1000.0
+
+            # FIXME Testing components for legality individually like this
+            # only really works if velocity is quite low.
+            self.y -= self.hover_height
+            (self.x, self.y, self.z) = self.world.legal_move(self,
+                nx, ny-self.hover_height, nz)
+            self.y += self.hover_height
+
+            if self.x != nx:
+                self.vel[0] = 0.0
+            if self.y != ny:
+                self.vel[1] = 0.0
+                self.supported = True
+            else:
+                self.supported = False
+            if self.z != nz:
+                self.vel[2] = 0.0
 
 class entity(physical_object):
-    pass
+    def __init__(self, *args):
+        physical_object.__init__(self, *args)
+    def jump(self):
+        self.vel[1] = JUMP_VELOCITY
 
 class camera(world_object):
     def __init__(self, world):
@@ -96,7 +132,7 @@ class camera(world_object):
 
 class player_character(entity, camera):
     def __init__(self, world, x, y, z):
-        entity.__init__(self, world)
+        entity.__init__(self, world, 1.5, .40)
         camera.__init__(self, world)
 
         (self.x, self.y, self.z) = (x, y, z)
@@ -119,13 +155,21 @@ class player_character(entity, camera):
         if 'd' in self.keys_down:
             (x,z) = self.move_sideways(-dist, x, z)
         if ' ' in self.keys_down:
-            y = self.move_up(dist, y)
+            if self.world.physics_on:
+                if self.physically_supported():
+                    self.jump()
+            else:
+                y = self.move_up(dist, y)
         if 'n' in self.keys_down:
-            y = self.move_up(-dist, y)
+            if not self.world.physics_on:
+                y = self.move_up(-dist, y)
         self.try_move(x,y,z)
 
     def on_key_up(self, key, _x, _y):
         self.keys_down.remove(key)
+
+        if key == 'p':
+            self.world.physics_on = not self.world.physics_on
 
     def on_key_down(self, key, _x, _y):
         self.keys_down.add(key)
@@ -166,6 +210,8 @@ class world(object):
         self.camera = self.player
         self.entities = [self.player]
 
+        self.physics_on = True
+
     def init_cldata(self, ctx):
         self.grid_clbuf = cl.Buffer(ctx,
             cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
@@ -195,12 +241,36 @@ class world(object):
                 if z != 2 or y > 1:
                     self.grid[24][y][z] = BK_WALL
 
-    def legal_x(self, x):
-        return x >= 0.0 and x < self.x_size
-    def legal_z(self, z):
-        return z >= 0.0 and z < self.z_size
-    def legal_y(self, y):
-        return y >= 0.0 and y < self.y_size
+    def legal_x(self, x,y,z):
+        return x >= 0.0 and x < self.x_size and \
+            not self.blocking(x,y,z)
+    def legal_z(self, x,y,z):
+        return z >= 0.0 and z < self.z_size and \
+            not self.blocking(x,y,z)
+    def legal_y(self, x,y,z):
+        return y >= 0.0 and y < self.y_size and \
+            not self.blocking(x,y,z)
+
+    def legal_move(self, wo, x, y, z):
+        """ legal_move: return the next position of an attempted move
+        of wo (a world_object) from its current position to x,y,z """
+        changed_all = True
+        if x < 0.0 or x >= self.x_size:
+            x = wo.x
+        else:
+            changed_all = False
+        if y < 0.0 or y >= self.y_size:
+            y = wo.y
+        else:
+            changed_all = False
+        if z < 0.0 or z >= self.z_size:
+            z = wo.z
+        else:
+            changed_all = False
+        if not changed_all:
+            if blocking(self.grid[x][y][z]):
+                (x,y,z) = (wo.x, wo.y, wo.z)
+        return (x,y,z)
 
     def advance(self, t):
         """ Advance the world t ms """
