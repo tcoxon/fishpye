@@ -48,8 +48,13 @@ float4 color_mix_shade(float4 color, float shading) {
                     color.w);
 }
 
-/* Returns new ray_color. Halts ray if alpha is 1.0f */
-float4 color_ray(world_t w, ray_t r)
+float dot_prod(float4 i, float4 j) {
+    return i.x * j.x + i.y * j.y + i.z * j.z + i.w * j.w;
+}
+
+/* Returns new ray_color. Halts ray if alpha is 1.0f.
+   v is the unit vector of the ray; t is how far down the ray we are. */
+float4 color_ray(world_t w, ray_t r, float4 v, float t)
 {
     uchar block_type = BK_AIR;
 
@@ -78,6 +83,7 @@ float4 color_ray(world_t w, ray_t r)
             break;
         }
 
+        /* Calculate ambient lighting on this face */
         if (r.last_step.y == -1) {
             // viewing block from above
             new_ray_color = color_mix_shade(new_ray_color, LIGHTEN);
@@ -85,6 +91,24 @@ float4 color_ray(world_t w, ray_t r)
             // viewing block from below
             new_ray_color = color_mix_shade(new_ray_color, DARKEN);
         }
+
+        /* Calculate diffuse lighting, reusing camera's position
+           as light source. */
+        float4 normal = (float4)(-r.last_step.x,
+                               -r.last_step.y,
+                               -r.last_step.z,
+                               -r.last_step.w);
+        float diffuse_light = dot_prod(normal, v);
+        /* The dot-product gives us -1.0 for fully lit surfaces,
+           and 0.0 or < 0.0 for orthogonal and far surfaces */
+        if (diffuse_light < 0.0f)
+            /* Some magic numbers to make things look nice.
+               Technically, it should be 1/t^2, but who cares about
+               realism? */
+            diffuse_light = 0.5f - diffuse_light / (0.6f * t);
+        else
+            diffuse_light = 0.0f;
+        new_ray_color = color_mix_shade(new_ray_color, diffuse_light);
     }
 
     return new_ray_color;
@@ -168,14 +192,16 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
     r.ray_color = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
     r.outside = false;
     r.last_step = (char4)(0,0,0,0);
+    float t = 0.0f;
 
     // FIXME assuming camera is always inside the grid
-    r.ray_color = color_ray(w, r);
+    r.ray_color = color_ray(w, r, v, t);
 
     #define STEP(dim) do { \
                         r.P.dim += step.dim; \
                         r.last_step = (char4)(0,0,0,0); \
                         r.last_step.dim = step.dim; \
+                        t = tmax.dim; \
                         if (r.P.dim == justOut.dim) { \
                             r.outside = true; \
                         } else \
@@ -200,7 +226,7 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
             }
         }
 
-        r.ray_color = color_ray(w, r);
+        r.ray_color = color_ray(w, r, v, t);
 
         if (r.ray_color.w == 1.0f)
             break;
