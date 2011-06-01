@@ -5,6 +5,13 @@ A (currently) non-recursive real-time raytracer in Python, OpenCL and OpenGL.
 
 Currently tested on a beefy NVIDIA GTX 570. Lesser cards may suffer.
 
+Controls:
+   * WASD to move around
+   * Mouse to control camera
+   * Space to go up
+   * N to go down
+   * O to change field of view
+
 TODO:
    * Think up better name
    * Document dependencies
