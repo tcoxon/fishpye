@@ -1,7 +1,8 @@
-raycl
+fishpye
 -----
 
-A (currently) non-recursive real-time raytracer in Python, OpenCL and OpenGL.
+A non-recursive voxel-based real-time raytracer in Python, OpenCL and OpenGL,
+with support for fish-eye/panoramic field-of-views.
 
 Currently tested on a beefy NVIDIA GTX 570. Lesser cards may suffer.
 
@@ -24,7 +25,6 @@ Notes:
         front of a parallel surface of the same color.
 
 TODO:
-   * Think up better name
    * Document dependencies
    * Gravity / physics
       * legal_move() needs to be aware that not all objects are points
