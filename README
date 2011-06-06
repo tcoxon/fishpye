@@ -36,9 +36,11 @@ Dependencies:
       * NVIDIA CUDA/OpenCL drivers
 
 TODO:
+   * Fix portal bugs:
+      * Vertical bounds checking seems to not work? justOut set wrong?
+      * transformation not smooth at edges of portal blocks.
    * Gravity / physics
       * legal_move() needs to be aware that not all objects are points
-   * Portals / mirrors
    * Self-viewing / entity rendering
    * Make into a game
 

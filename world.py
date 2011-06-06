@@ -240,7 +240,7 @@ class world(object):
             ctypes.POINTER(ctypes.c_float))
         for x in xrange(0,4):
             for y in xrange(0,4):
-                flts[x + y*4] = portal[x,y]
+                flts[x + y*4] = portal[y,x]
 
     def setup_map(self):
         # Create the array to use as the map data
@@ -273,12 +273,12 @@ class world(object):
             for y in xrange(0,5):
                 # with a door:
                 if z != 2 or y > 1:
-                    self.grid_set(24,y,z, BK_WALL)
+                    self.grid_set(23,y,z, BK_WALL)
 
         # Set up a demonstration portal:
         self.set_portal(0, numpy.matrix([
             [1, 0, 0, 0],
-            [0, 1, 0, -10],
+            [0, 1, 0, -15],
             [0, 0, 1, 0],
             [0, 0, 0, 1]]))
         for x in xrange(8, 12):

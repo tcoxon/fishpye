@@ -35,7 +35,7 @@ typedef struct world_t {
     uchar4 bounds;
     uint edge_type;
     __constant uchar *grid;
-    __constant uchar *portals;
+    __constant float *portals;
 } world_t;
 
 typedef struct ray_t {
@@ -57,6 +57,33 @@ float dot_prod(float4 i, float4 j) {
     return i.x * j.x + i.y * j.y + i.z * j.z + i.w * j.w;
 }
 
+float4 apply_matrix(float16 m_, float4 v) {
+    union {
+        float16 f;
+        float m[16];
+    } mu;
+    mu.f = m_;
+    float *m = mu.m;
+    #define ELE(i) (m[i]*v.x + m[i+1]*v.y + m[i+2]*v.z + m[i+3]*v.w)
+    return (float4)(ELE(0), ELE(4), ELE(8), ELE(12));
+    #undef ELE
+}
+
+uchar grid_get(world_t w, int4 P) {
+    return w.grid[P.x + (P.y * w.bounds.x) +
+        (P.z * w.bounds.x * w.bounds.y)];
+}
+
+float16 get_portal(world_t w, uchar i) {
+    __constant float *p = &w.portals[i*16];
+    float16 result = (float16)(
+        p[0], p[1], p[2], p[3],
+        p[4], p[5], p[6], p[7],
+        p[8], p[9], p[10], p[11],
+        p[12], p[13], p[14], p[15]);
+    return result;
+}
+
 /* Returns new ray_color. Halts ray if alpha is 1.0f.
    v is the unit vector of the ray; t is how far down the ray we are. */
 float4 color_ray(world_t w, ray_t r, float4 v, float t)
@@ -72,48 +99,53 @@ float4 color_ray(world_t w, ray_t r, float4 v, float t)
             return (float4)(0.0f, 0.0f, 0.0f, 1.0f);
         }
     } else {
-        block_type = w.grid[r.P.x + (r.P.y * w.bounds.x) +
-            (r.P.z * w.bounds.x * w.bounds.y)];
+        block_type = grid_get(w, r.P);
     }
 
     float4 new_ray_color = r.ray_color;
 
     if (block_type != BK_AIR) {
+        bool set_color = false;
+
         switch (block_type) {
         case BK_WALL:
             new_ray_color = COLOR_WALL;
+            set_color = true;
             break;
         case BK_WALLG:
             new_ray_color = COLOR_WALLG;
+            set_color = true;
             break;
         }
 
-        /* Calculate ambient lighting on this face */
-        if (r.last_step.y == -1) {
-            // viewing block from above
-            new_ray_color = color_mix_shade(new_ray_color, LIGHTEN);
-        } else if (r.last_step.y == 1) {
-            // viewing block from below
-            new_ray_color = color_mix_shade(new_ray_color, DARKEN);
-        }
+        if (set_color) {
+            /* Calculate ambient lighting on this face */
+            if (r.last_step.y == -1) {
+                // viewing block from above
+                new_ray_color = color_mix_shade(new_ray_color, LIGHTEN);
+            } else if (r.last_step.y == 1) {
+                // viewing block from below
+                new_ray_color = color_mix_shade(new_ray_color, DARKEN);
+            }
 
-        /* Calculate diffuse lighting, reusing camera's position
-           as light source. */
-        float4 normal = (float4)(-r.last_step.x,
-                               -r.last_step.y,
-                               -r.last_step.z,
-                               -r.last_step.w);
-        float diffuse_light = dot_prod(normal, v);
-        /* The dot-product gives us -1.0 for fully lit surfaces,
-           and 0.0 or < 0.0 for orthogonal and far surfaces */
-        if (diffuse_light < 0.0f)
-            /* Some magic numbers to make things look nice.
-               Technically, it should be 1/t^2, but who cares about
-               realism? */
-            diffuse_light = 0.5f - diffuse_light / (0.6f * t);
-        else
-            diffuse_light = 0.0f;
-        new_ray_color = color_mix_shade(new_ray_color, diffuse_light);
+            /* Calculate diffuse lighting, reusing camera's position
+               as light source. */
+            float4 normal = (float4)(-r.last_step.x,
+                                   -r.last_step.y,
+                                   -r.last_step.z,
+                                   -r.last_step.w);
+            float diffuse_light = dot_prod(normal, v);
+            /* The dot-product gives us -1.0 for fully lit surfaces,
+               and 0.0 or < 0.0 for orthogonal and far surfaces */
+            if (diffuse_light < 0.0f)
+                /* Some magic numbers to make things look nice.
+                   Technically, it should be 1/t^2, but who cares about
+                   realism? */
+                diffuse_light = 0.5f - diffuse_light / (0.6f * t);
+            else
+                diffuse_light = 0.0f;
+            new_ray_color = color_mix_shade(new_ray_color, diffuse_light);
+        }
     }
 
     return new_ray_color;
@@ -127,7 +159,8 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
     w.bounds = (uchar4)(mapdat[0], mapdat[1], mapdat[2], 0); /* Grid dimensions */
     w.edge_type = mapdat[3];
     w.grid = &mapdat[GRID_OFF];
-    w.portals = &mapdat[GRID_OFF + w.bounds.x*w.bounds.y*w.bounds.z];
+    w.portals = (__constant float *)&mapdat[GRID_OFF +
+        w.bounds.x*w.bounds.y*w.bounds.z];
 
     /* Screen pixel position: */
     int2 p_pos = (int2)(get_global_id(0), get_global_id(1));
@@ -160,44 +193,58 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
       0.0f);
 
     /* u is the starting point of the ray */
-    float4 u = (float4)(cam_x, cam_y, cam_z, 0.0f);
+    float4 u = (float4)(cam_x, cam_y, cam_z, 1.0f);
     // Thus equation of the ray = u + vt
 
+    float t = 0.0f;
+
     // P = (X,Y,Z) = current voxel coordinates
-    r.P = (int4)((int)u.x, (int)u.y, (int)u.z, 0);
+    r.P = (int4)((int)u.x, (int)u.y, (int)u.z, 1);
     // TODO handle P being outside bounds of grid
 
     /* step = (stepX, stepY, stepZ) = values are either 1, 0, or -1.
        Components are determined from the sign of the components of v */
-    char4 step = (char4)((char)sign(v.x), (char)sign(v.y),
-                     (char)sign(v.z), 0);
+    char4 step;
+    #define RESET_STEP do { \
+        step = (char4)((char)sign(v.x), (char)sign(v.y), \
+                       (char)sign(v.z), 0); \
+    } while (0)
+    RESET_STEP;
 
     /* tmax = (tmaxX, tmaxY, tmaxZ) = values of t at which ray next
        crosses a voxel boundary in the respective direction */
-    float4 tmax = (float4)((r.P.x + POSITIVE(step.x) - u.x)/v.x,
-                      (r.P.y + POSITIVE(step.y) - u.y)/v.y,
-                      (r.P.z + POSITIVE(step.z) - u.z)/v.z,
-                      0.0f);
+    float4 tmax;
+    #define RESET_TMAX do { \
+        tmax = (float4)((r.P.x + POSITIVE(step.x) - u.x)/v.x, \
+                          (r.P.y + POSITIVE(step.y) - u.y)/v.y, \
+                          (r.P.z + POSITIVE(step.z) - u.z)/v.z, \
+                          0.0f); \
+    } while (0)
+    RESET_TMAX;
 
     /* dt = (dtX, dtY, dtZ) = how far along ray (in units of t) we must
        move for x/y/z component of move to equal width of one voxel */
-    float4 dt = (float4)(step.x / v.x,
-                    step.y / v.y,
-                    step.z / v.z,
-                    0.0f);
+    float4 dt;
+    #define RESET_DT do { \
+        dt = (float4)(step.x / v.x, step.y / v.y, step.z / v.z, 0.0f); \
+    } while (0);
+    RESET_DT;
 
     /* justOut vector - used for checking we remain within the bounds
        of the grid */
-    int4 justOut = (int4)(step.x == -1 ? -1 : w.bounds.x,
-                     step.y == -1 ? -1 : w.bounds.y,
-                     step.z == -1 ? -1 : w.bounds.z,
-                     0);
+    int4 justOut;
+    #define RESET_JUSTOUT do { \
+        justOut = (int4)(step.x == -1 ? -1 : w.bounds.x, \
+                         step.y == -1 ? -1 : w.bounds.y, \
+                         step.z == -1 ? -1 : w.bounds.z, \
+                         0); \
+    } while (0)
+    RESET_JUSTOUT;
 
 
     r.ray_color = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
     r.outside = false;
     r.last_step = (char4)(0,0,0,0);
-    float t = 0.0f;
 
     // FIXME assuming camera is always inside the grid
     r.ray_color = color_ray(w, r, v, t);
@@ -231,7 +278,24 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
             }
         }
 
-        r.ray_color = color_ray(w, r, v, t);
+        if (!r.outside && grid_get(w, r.P) == BK_PORTAL0) {
+            float16 portal = get_portal(w, 0);
+
+            u = apply_matrix(portal, u);
+            v = apply_matrix(portal, v);
+            r.P = (int4)((int)(u.x + v.x*t),
+                         (int)(u.y + v.y*t),
+                         (int)(u.z + v.z*t),
+                         1);
+            RESET_STEP;
+            RESET_DT;
+            RESET_TMAX;
+
+            RESET_JUSTOUT;
+
+        } else {
+            r.ray_color = color_ray(w, r, v, t);
+        }
 
         if (r.ray_color.w == 1.0f)
             break;
