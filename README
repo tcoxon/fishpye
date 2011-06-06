@@ -24,8 +24,18 @@ Notes:
         make it easier to discern the edge of a surface when it's in
         front of a parallel surface of the same color.
 
+Dependencies:
+   * Definitely needed:
+      * python
+      * python-opengl
+      * python-pyopencl
+      * Your graphics card's OpenCL drivers (see vendor's website)
+   * Currently tested with:
+      * Ubuntu 11.04
+      * python2.7
+      * NVIDIA CUDA/OpenCL drivers
+
 TODO:
-   * Document dependencies
    * Gravity / physics
       * legal_move() needs to be aware that not all objects are points
    * Portals / mirrors
