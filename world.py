@@ -1,6 +1,7 @@
 
 import math
 import numpy 
+import ctypes
 
 import pyopencl as cl
 
@@ -13,6 +14,7 @@ ET_SOLID_AIR = 2
 BK_AIR = 0
 BK_WALL = 1
 BK_WALLG = 2
+BK_PORTAL0 = 255
 
 # Camera field-of-view modes
 FOV_DEFAULT = math.pi/2
@@ -227,10 +229,22 @@ class world(object):
         self.mapdat[GRID_OFF + int(x) +
             int(y) * self.x_size() +
             int(z) * self.x_size() * self.y_size()] = v
+    def get_portal_off(self):
+        return GRID_OFF + self.x_size() * self.y_size() * self.z_size()
+    def get_portal(self, i):
+        flts = ctypes.cast(ctypes.byref(self.mapdat, self.get_portal_off() + 64*i),
+            ctypes.POINTER(ctypes.c_float))
+        return numpy.matrix([flts[0:4], flts[4:8], flts[8:12], flts[12:16]])
+    def set_portal(self, i, portal):
+        flts = ctypes.cast(ctypes.byref(self.mapdat, self.get_portal_off() + 64*i),
+            ctypes.POINTER(ctypes.c_float))
+        for x in xrange(0,4):
+            for y in xrange(0,4):
+                flts[x + y*4] = portal[x,y]
 
     def setup_map(self):
         # Create the array to use as the map data
-        self.mapdat = numpy.zeros(shape=(MAPDAT_SZ,), dtype=numpy.uint8)
+        self.mapdat = (ctypes.c_byte*MAPDAT_SZ)(0)
 
         ## Set up mapdat header
         self.mapdat[0] = 31      # x_size
@@ -260,6 +274,16 @@ class world(object):
                 # with a door:
                 if z != 2 or y > 1:
                     self.grid_set(24,y,z, BK_WALL)
+
+        # Set up a demonstration portal:
+        self.set_portal(0, numpy.matrix([
+            [1, 0, 0, 0],
+            [0, 1, 0, -10],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]]))
+        for x in xrange(8, 12):
+            for z in xrange(8, 12):
+                self.grid_set(x, 0, z, BK_PORTAL0)
 
     def legal_move(self, wo, x, y, z):
         """ legal_move: return the next position of an attempted move

@@ -23,6 +23,7 @@
 #define BK_AIR      0
 #define BK_WALL     1
 #define BK_WALLG    2
+#define BK_PORTAL0  255
 
 /* Handy macro for computing nearest axis boundary */
 #define POSITIVE(X) ((X) > 0 ? (X) : 0)
@@ -34,6 +35,7 @@ typedef struct world_t {
     uchar4 bounds;
     uint edge_type;
     __constant uchar *grid;
+    __constant uchar *portals;
 } world_t;
 
 typedef struct ray_t {
@@ -125,6 +127,7 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
     w.bounds = (uchar4)(mapdat[0], mapdat[1], mapdat[2], 0); /* Grid dimensions */
     w.edge_type = mapdat[3];
     w.grid = &mapdat[GRID_OFF];
+    w.portals = &mapdat[GRID_OFF + w.bounds.x*w.bounds.y*w.bounds.z];
 
     /* Screen pixel position: */
     int2 p_pos = (int2)(get_global_id(0), get_global_id(1));
