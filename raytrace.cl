@@ -27,10 +27,13 @@
 /* Handy macro for computing nearest axis boundary */
 #define POSITIVE(X) ((X) > 0 ? (X) : 0)
 
+/* Offset of grid within mapdat */
+#define GRID_OFF 4
+
 typedef struct world_t {
-    __constant uchar *grid;
     uchar4 bounds;
     uint edge_type;
+    __constant uchar *grid;
 } world_t;
 
 typedef struct ray_t {
@@ -115,14 +118,13 @@ float4 color_ray(world_t w, ray_t r, float4 v, float t)
 }
 
 __kernel void raytrace(__write_only __global image2d_t bmp,
-    uchar x_size, uchar y_size, uchar z_size, uchar edge_type,
     float rot_x, float rot_y, float cam_x, float cam_y, float cam_z,
-    float fov_x, float fov_y, __constant uchar *grid)
+    float fov_x, float fov_y, __constant uchar *mapdat)
 {
     world_t w;
-    w.grid = grid;
-    w.edge_type = edge_type;
-    w.bounds = (uchar4)(x_size, y_size, z_size, 0); /* Grid dimensions */
+    w.bounds = (uchar4)(mapdat[0], mapdat[1], mapdat[2], 0); /* Grid dimensions */
+    w.edge_type = mapdat[3];
+    w.grid = &mapdat[GRID_OFF];
 
     /* Screen pixel position: */
     int2 p_pos = (int2)(get_global_id(0), get_global_id(1));

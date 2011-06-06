@@ -22,6 +22,13 @@ FOV_360 = 2*math.pi
 WALK_SPEED = 4.0 # m/s
 JUMP_VELOCITY = 6.0 # m/s
 
+# Allocate 16kb for the map data. This is the most we can expect from most
+# cards (though some go up to 64kb).
+MAPDAT_SZ = 16*1024
+
+# Offset of the grid within mapdat
+GRID_OFF = 4
+
 def blocking(block_type):
     return block_type != BK_AIR
 
@@ -195,16 +202,7 @@ class player_character(entity, camera):
 class world(object):
 
     def __init__(self):
-        self.world_shape = (self.x_size, self.y_size, self.z_size) = \
-            (32, 16, 31)
-
-        # Create 3D matrix of bytes to use as the grid
-        self.grid = numpy.zeros(shape=self.world_shape,
-            dtype=numpy.uint8, order='F')
-        self.setup_grid()
-
-        # What to display at the end of the world
-        self.edge_type = ET_WALL
+        self.setup_map()
 
         self.player = player_character(self, 0.5, 1.5, 0.5)
         self.camera = self.player
@@ -213,62 +211,77 @@ class world(object):
         self.physics_on = True
 
     def init_cldata(self, ctx):
-        self.grid_clbuf = cl.Buffer(ctx,
+        self.mapdat_clbuf = cl.Buffer(ctx,
             cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-            size=(self.x_size * self.y_size * self.z_size),
-            hostbuf=self.grid)
+            size=MAPDAT_SZ, hostbuf=self.mapdat)
 
-    def setup_grid(self):
+    def x_size(self): return self.mapdat[0]
+    def y_size(self): return self.mapdat[1]
+    def z_size(self): return self.mapdat[2]
+    def edge_type(self): return self.mapdat[3]
+    def grid_get(self, x, y, z):
+        return self.mapdat[GRID_OFF + int(x) +
+            int(y) * self.x_size() +
+            int(z) * self.x_size() * self.y_size()]
+    def grid_set(self, x, y, z, v):
+        self.mapdat[GRID_OFF + int(x) +
+            int(y) * self.x_size() +
+            int(z) * self.x_size() * self.y_size()] = v
+
+    def setup_map(self):
+        # Create the array to use as the map data
+        self.mapdat = numpy.zeros(shape=(MAPDAT_SZ,), dtype=numpy.uint8)
+
+        ## Set up mapdat header
+        self.mapdat[0] = 31      # x_size
+        self.mapdat[1] = 16      # y_size
+        self.mapdat[2] = 31      # z_size
+        self.mapdat[3] = ET_WALL # edge_type
+        
+        ## Fill in grid:
         # Create alternating column of air and green blocks
         for i in xrange(1, 16, 2):
-            self.grid[5][i][5] = BK_WALLG
+            self.grid_set(5, i, 5, BK_WALLG)
 
         ## Build a house in the x=32,z=0 corner
         # Wall facing +z
-        for x in xrange(25,32):
+        for x in xrange(24,31):
             for y in xrange(0,5):
                 # with a window:
-                if x != 27 or y != 1:
-                    self.grid[x][y][5] = BK_WALL
+                if x != 26 or y != 1:
+                    self.grid_set(x,y,5, BK_WALL)
         # Ceiling
-        for x in xrange(25,32):
+        for x in xrange(24,31):
             for z in xrange(0,5):
-                self.grid[x][5][z] = BK_WALL
+                self.grid_set(x,5,z, BK_WALL)
         # Front:
         for z in xrange(0,6):
             for y in xrange(0,5):
                 # with a door:
                 if z != 2 or y > 1:
-                    self.grid[24][y][z] = BK_WALL
-
-    def legal_x(self, x,y,z):
-        return x >= 0.0 and x < self.x_size and \
-            not self.blocking(x,y,z)
-    def legal_z(self, x,y,z):
-        return z >= 0.0 and z < self.z_size and \
-            not self.blocking(x,y,z)
-    def legal_y(self, x,y,z):
-        return y >= 0.0 and y < self.y_size and \
-            not self.blocking(x,y,z)
+                    self.grid_set(24,y,z, BK_WALL)
 
     def legal_move(self, wo, x, y, z):
         """ legal_move: return the next position of an attempted move
         of wo (a world_object) from its current position to x,y,z """
+        # changed_all really means reverted_all, as in all proposed
+        # coordinates x,y,z have been reverted to the object's current
+        # coordinates.
         changed_all = True
-        if x < 0.0 or x >= self.x_size:
+        if x < 0.0 or x >= self.x_size():
             x = wo.x
         else:
             changed_all = False
-        if y < 0.0 or y >= self.y_size:
+        if y < 0.0 or y >= self.y_size():
             y = wo.y
         else:
             changed_all = False
-        if z < 0.0 or z >= self.z_size:
+        if z < 0.0 or z >= self.z_size():
             z = wo.z
         else:
             changed_all = False
         if not changed_all:
-            if blocking(self.grid[x][y][z]):
+            if blocking(self.grid_get(x,y,z)):
                 (x,y,z) = (wo.x, wo.y, wo.z)
         return (x,y,z)
 

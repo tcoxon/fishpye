@@ -55,10 +55,6 @@ class raycl(object):
         world = self.world
 
         kernelargs = (self.tex,
-                      numpy.uint8(world.x_size),
-                      numpy.uint8(world.y_size),
-                      numpy.uint8(world.z_size),
-                      numpy.uint8(world.edge_type),
                       numpy.float32(world.camera.rot_x),
                       numpy.float32(world.camera.rot_y),
                       numpy.float32(world.camera.x),
@@ -66,7 +62,7 @@ class raycl(object):
                       numpy.float32(world.camera.z),
                       numpy.float32(world.camera.fov_x()),
                       numpy.float32(world.camera.fov_y()),
-                      world.grid_clbuf)
+                      world.mapdat_clbuf)
 
         self.program.raytrace(self.queue, global_size, local_size,
             *kernelargs)
