@@ -23,7 +23,7 @@
 #define BK_AIR      0
 #define BK_WALL     1
 #define BK_WALLG    2
-#define BK_PORTAL0  255
+#define BK_PORTAL(X)  (255-(X))
 
 /* Handy macro for computing nearest axis boundary */
 #define POSITIVE(X) ((X) > 0 ? (X) : 0)
@@ -53,6 +53,27 @@ float4 color_mix_shade(float4 color, float shading) {
                     color.w);
 }
 
+float4 vec_add_f4_c4(float4 a, char4 b) {
+    return (float4)(a.x + b.x,
+                    a.y + b.y,
+                    a.z + b.z,
+                    a.w + b.w);
+}
+
+int4 vec_add_i4_c4(int4 a, char4 b) {
+    return (int4)(a.x + b.x,
+                  a.y + b.y,
+                  a.z + b.z,
+                  a.w + b.w);
+}
+
+char4 vec_scale_c_c4(char s, char4 v) {
+    return (char4)(s*v.x,
+                   s*v.y,
+                   s*v.z,
+                   s*v.w);
+}
+
 float dot_prod(float4 i, float4 j) {
     return i.x * j.x + i.y * j.y + i.z * j.z + i.w * j.w;
 }
@@ -72,6 +93,13 @@ float4 apply_matrix(float16 m_, float4 v) {
 uchar grid_get(world_t w, int4 P) {
     return w.grid[P.x + (P.y * w.bounds.x) +
         (P.z * w.bounds.x * w.bounds.y)];
+}
+
+/* Returns the portal number if the block is a portal, or otherwise -1. */
+char is_portal_block(uchar block_type) {
+    return block_type >= BK_PORTAL(8) && block_type <= BK_PORTAL(0)
+        ? 255 - block_type
+        : -1;
 }
 
 float16 get_portal(world_t w, uchar i) {
@@ -212,13 +240,17 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
     RESET_STEP;
 
     /* tmax = (tmaxX, tmaxY, tmaxZ) = values of t at which ray next
-       crosses a voxel boundary in the respective direction */
+       crosses a voxel boundary in the respective direction.
+       In RESET_TMAX, the "step.dim ?" conditionalisation is because we want
+       infinity, not NaN, when v.dim is 0. NaN would cause an infinite
+       loop in portal rendering. */
     float4 tmax;
     #define RESET_TMAX do { \
-        tmax = (float4)((r.P.x + POSITIVE(step.x) - u.x)/v.x, \
-                          (r.P.y + POSITIVE(step.y) - u.y)/v.y, \
-                          (r.P.z + POSITIVE(step.z) - u.z)/v.z, \
-                          0.0f); \
+        tmax = (float4)( \
+            step.x ? (r.P.x + POSITIVE(step.x) - u.x)/v.x : 1.0/0.0, \
+            step.y ? (r.P.y + POSITIVE(step.y) - u.y)/v.y : 1.0/0.0, \
+            step.z ? (r.P.z + POSITIVE(step.z) - u.z)/v.z : 1.0/0.0, \
+            0.0f); \
     } while (0)
     RESET_TMAX;
 
@@ -278,9 +310,26 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
             }
         }
 
-        if (!r.outside && grid_get(w, r.P) == BK_PORTAL0) {
-            float16 portal = get_portal(w, 0);
+        char portal_num = -1;
+        if (!r.outside &&
+            (portal_num = is_portal_block(grid_get(w, r.P))) != -1)
+        {
+            float16 portal = get_portal(w, portal_num);
 
+            // Step to the opposite (back) face of the portal
+            char steps = 1;
+            r.P = vec_add_i4_c4(r.P, r.last_step);
+            while (r.P.x != justOut.x &&
+                r.P.y != justOut.y &&
+                r.P.z != justOut.z &&
+                is_portal_block(grid_get(w, r.P)) != -1)
+            {
+                r.P = vec_add_i4_c4(r.P, r.last_step);
+                steps ++;
+            }
+            u = vec_add_f4_c4(u, vec_scale_c_c4(steps, r.last_step));
+
+            // Now apply the portal transformation
             u = apply_matrix(portal, u);
             v = apply_matrix(portal, v);
             r.P = (int4)((int)(u.x + v.x*t),
@@ -292,6 +341,13 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
             RESET_TMAX;
 
             RESET_JUSTOUT;
+
+            /*if (r.P.x < 0 || r.P.x >= w.bounds.x ||
+                r.P.y < 0 || r.P.y >= w.bounds.y ||
+                r.P.z < 0 || r.P.z >= w.bounds.z)
+            {
+                r.ray_color = (float4)(0.0,1.0,0.0,1.0);
+            }*/
 
         } else {
             r.ray_color = color_ray(w, r, v, t);

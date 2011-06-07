@@ -14,7 +14,8 @@ ET_SOLID_AIR = 2
 BK_AIR = 0
 BK_WALL = 1
 BK_WALLG = 2
-BK_PORTAL0 = 255
+# 246-255 reserved for BK_PORTAL[n]
+BK_PORTAL = [255 - x for x in xrange(0,9)]
 
 # Camera field-of-view modes
 FOV_DEFAULT = math.pi/2
@@ -275,15 +276,35 @@ class world(object):
                 if z != 2 or y > 1:
                     self.grid_set(23,y,z, BK_WALL)
 
-        # Set up a demonstration portal:
+        # Set up a demonstration portal into a reflected universe on floor:
         self.set_portal(0, numpy.matrix([
-            [1, 0, 0, 0],
-            [0, 1, 0, -15],
+            [-1, 0, 0, 20],
+            [0, 1, 0, 10],
             [0, 0, 1, 0],
             [0, 0, 0, 1]]))
         for x in xrange(8, 12):
             for z in xrange(8, 12):
-                self.grid_set(x, 0, z, BK_PORTAL0)
+                self.grid_set(x, 0, z, BK_PORTAL[0])
+        
+        # Set up a pair of linked portals:
+        for x in xrange(20,22):
+            for z in xrange(20,22):
+                for y in xrange(0,3):
+                    self.grid_set(x, y, z, BK_PORTAL[1])
+        self.set_portal(1, numpy.matrix([
+            [1, 0, 0, -10],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]]))
+        for x in xrange(10, 12):
+            for z in xrange(20,22):
+                for y in xrange(0,3):
+                    self.grid_set(x, y, z, BK_PORTAL[2])
+        self.set_portal(2, numpy.matrix([
+            [1, 0, 0, 10],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]]))
 
     def legal_move(self, wo, x, y, z):
         """ legal_move: return the next position of an attempted move

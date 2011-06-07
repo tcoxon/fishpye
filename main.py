@@ -115,8 +115,13 @@ class window(object):
     def draw(self):
         if self.count_to_30 == 0:
             self.time_start = time.time()
-            
-        self.raycl.execute()
+        
+        try:
+            self.raycl.execute()
+        except:
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glMatrixMode(GL_MODELVIEW)

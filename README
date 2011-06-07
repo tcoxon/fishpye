@@ -1,5 +1,5 @@
 fishpye
------
+-------
 
 A non-recursive voxel-based real-time raytracer in Python, OpenCL and OpenGL,
 with support for fish-eye/panoramic field-of-views.
@@ -14,7 +14,7 @@ Controls:
    * N to go down (with physics off)
    * O to change field of view
 
-Notes:
+Technical Notes:
    * Lighting:
       * Ambient lighting depends on the face of the block being viewed.
         Top surfaces get lit, bottom surfaces get darkened.
@@ -23,6 +23,17 @@ Notes:
         and the surface. It also falls away as 1/t instead of 1/t^2 to
         make it easier to discern the edge of a surface when it's in
         front of a parallel surface of the same color.
+   * Portals
+      * Each is defined by its own portal block types deployed in the map
+        grid and a matrix that defines its scaling, rotating, reflecting,
+        translating effects.
+      * _Have volume_ (and so work differently from in Valve's Portal).
+      * May be approached from any face, and all faces act as portals.
+      * When crossing a portal face, the ray/physics object is first
+        translated to the opposite face, and _then_ transformed by the
+        portal's matrix. This has the effect of looking into a portal always
+        looking out of the exit portal (in the case of two linked portals),
+        and is necessary because portals are 3-dimensional.
 
 Dependencies:
    * Definitely needed:
@@ -36,11 +47,10 @@ Dependencies:
       * NVIDIA CUDA/OpenCL drivers
 
 TODO:
-   * Fix portal bugs:
-      * Vertical bounds checking seems to not work? justOut set wrong?
-      * transformation not smooth at edges of portal blocks.
    * Gravity / physics
       * legal_move() needs to be aware that not all objects are points
+      * walking through portals
+         * reflecting player character
    * Self-viewing / entity rendering
    * Make into a game
 
