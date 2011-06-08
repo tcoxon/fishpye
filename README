@@ -14,6 +14,24 @@ Controls:
    * N to go down (with physics off)
    * O to change field of view
 
+Dependencies:
+   * Definitely needed:
+      * python
+      * python-opengl
+      * python-pyopencl
+      * Your graphics card's OpenCL drivers (see vendor's website)
+   * Currently tested with:
+      * Ubuntu 11.04
+      * python2.7
+      * NVIDIA CUDA/OpenCL drivers
+
+License:
+   * GPLv3
+      * In future I may want to dual-license this project. If you submit 
+        patches / pull requests to me, please mention whether you're
+        transferring copyright ownership, submitting under a permissive
+        license (e.g. X11, Modified-BSD), or dual-licensing it to me.
+
 Technical Notes:
    * Lighting:
       * Ambient lighting depends on the face of the block being viewed.
@@ -34,17 +52,6 @@ Technical Notes:
         portal's matrix. This has the effect of looking into a portal always
         looking out of the exit portal (in the case of two linked portals),
         and is necessary because portals are 3-dimensional.
-
-Dependencies:
-   * Definitely needed:
-      * python
-      * python-opengl
-      * python-pyopencl
-      * Your graphics card's OpenCL drivers (see vendor's website)
-   * Currently tested with:
-      * Ubuntu 11.04
-      * python2.7
-      * NVIDIA CUDA/OpenCL drivers
 
 TODO:
    * Gravity / physics
