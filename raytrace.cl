@@ -349,9 +349,9 @@ __kernel void raytrace(__write_only __global image2d_t bmp,
                 r.ray_color = (float4)(0.0,1.0,0.0,1.0);
             }*/
 
-        } else {
-            r.ray_color = color_ray(w, r, v, t);
         }
+
+        r.ray_color = color_ray(w, r, v, t);
 
         if (r.ray_color.w == 1.0f)
             break;
