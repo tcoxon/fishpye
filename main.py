@@ -8,7 +8,7 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
 import raycl
-import world
+import testmaps
 
 class window(object):
     def __init__(self, *args, **kwargs):
@@ -45,7 +45,7 @@ class window(object):
         self.glinit()
 
         # set up world for the game
-        self.world = world.world()
+        self.world = testmaps.testmap1()
 
         # set up display texture and opencl
         self.texture = self.create_blank_texture()
