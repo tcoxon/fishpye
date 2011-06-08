@@ -25,6 +25,10 @@ Dependencies:
       * python2.7
       * NVIDIA CUDA/OpenCL drivers
 
+Command-Line Options:
+   * --unlimited
+      * Raises framerate limit from 50fps to 1000fps.
+
 License:
    * GPLv3
       * In future I may want to dual-license this project. If you submit 

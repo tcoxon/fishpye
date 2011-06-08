@@ -1,7 +1,7 @@
 import sys
 import numpy
 import ctypes
-import time
+import datetime
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -11,7 +11,7 @@ import raycl
 import testmaps
 
 class window(object):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, unlimited, *args, **kwargs):
         self.width = 640
         self.height = 480
         self.cx = self.width / 2
@@ -39,7 +39,9 @@ class window(object):
         glutPassiveMotionFunc(self.on_mouse_motion)
 
         # Limit to 50fps
-        glutTimerFunc(20, self.timer, 20)
+        self.time_limit = 20 if not unlimited else 1
+        self.last_tick = datetime.datetime.now()
+        glutTimerFunc(self.time_limit, self.timer, 0)
 
         # set up OpenGL scene
         self.glinit()
@@ -79,9 +81,17 @@ class window(object):
         glutWarpPointer(self.cx, self.cy)
 
     # Callbacks
-    def timer(self, t):
-        glutTimerFunc(t, self.timer, t)
-        self.world.advance(t)
+    def timer(self, foo):
+        # Work out how much time has passed since the last tick
+        t = datetime.datetime.now()
+        dt = (t - self.last_tick).total_seconds() * 1000.0
+        self.last_tick = t
+
+        # Set up timer again
+        glutTimerFunc(self.time_limit, self.timer, foo)
+
+        # Update world by calculated time difference & display
+        self.world.advance(dt)
         glutPostRedisplay()
 
     def on_key_down(self, key, x, y):
@@ -114,7 +124,7 @@ class window(object):
     # draw stuff
     def draw(self):
         if self.count_to_30 == 0:
-            self.time_start = time.time()
+            self.time_start = datetime.datetime.now()
         
         try:
             self.raycl.execute()
@@ -140,7 +150,7 @@ class window(object):
         if self.count_to_30 >= 30:
             self.count_to_30 = 0
             
-            dt = time.time() - self.time_start
+            dt = (datetime.datetime.now() - self.time_start).total_seconds()
 
             fps = 30 / dt
 
@@ -187,5 +197,8 @@ class window(object):
         glEnd()
 
 if __name__ == "__main__":
-    w = window()
+    unlimited = False
+    if len(sys.argv) > 1 and sys.argv[1] == "--unlimited":
+        unlimited = True
+    w = window(unlimited)
     glutMainLoop()
