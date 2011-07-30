@@ -85,8 +85,6 @@ class physical_object(world_object):
             ny += self.vel[1] * t / 1000.0
             nz += self.vel[2] * t / 1000.0
 
-            # FIXME Testing components for legality individually like this
-            # only really works if velocity is quite low.
             self.y -= self.hover_height
             (self.x, self.y, self.z) = self.world.legal_move(self,
                 nx, ny-self.hover_height, nz)
@@ -153,7 +151,7 @@ class player_character(entity, camera):
         camera.advance(self, t)
         entity.advance(self, t)
 
-        # Move the camera if relevant key is down:
+        # Move the player if relevant key is down:
         dist = WALK_SPEED * t / 1000.0
         (x,y,z) = (self.x, self.y, self.z)
         if 'w' in self.keys_down:
