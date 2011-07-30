@@ -257,26 +257,8 @@ class world(object):
     def legal_move(self, wo, x, y, z):
         """ legal_move: return the next position of an attempted move
         of wo (a world_object) from its current position to x,y,z """
-        # changed_all really means reverted_all, as in all proposed
-        # coordinates x,y,z have been reverted to the object's current
-        # coordinates.
-        changed_all = True
-        if x < 0.0 or x >= self.x_size():
-            x = wo.x
-        else:
-            changed_all = False
-        if y < 0.0 or y >= self.y_size():
-            y = wo.y
-        else:
-            changed_all = False
-        if z < 0.0 or z >= self.z_size():
-            z = wo.z
-        else:
-            changed_all = False
-        if not changed_all:
-            if blocking(self.grid_get(x,y,z)):
-                (x,y,z) = (wo.x, wo.y, wo.z)
-        return (x,y,z)
+        import physics
+        return physics.legal_move(self, wo, x, y, z)
 
     def advance(self, t):
         """ Advance the world t ms """
