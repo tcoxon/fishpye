@@ -10,7 +10,7 @@ Controls:
    * WASD to move around
    * Mouse to control camera
    * P to toggle physics
-   * Space to go up
+   * Space to jump / cling to ceiling immediately above you
    * N to go down (with physics off)
    * O to change field of view
 
@@ -59,7 +59,9 @@ Technical Notes:
 
 TODO:
    * Gravity / physics
-      * legal_move() needs to be aware that not all objects are points
+      * Possibly hit-detection with volumes instead of line-segments?
+      * Should test components of movement individually so that sliding
+          along a wall is possible.
       * walking through portals
          * reflecting player character
    * Self-viewing / entity rendering

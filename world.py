@@ -32,6 +32,9 @@ MAPDAT_SZ = 16*1024
 # Offset of the grid within mapdat
 GRID_OFF = 4
 
+def floor(x):
+    return int(math.floor(x))
+
 def blocking(block_type):
     return block_type != BK_AIR
 
@@ -63,37 +66,46 @@ class world_object(object):
 class physical_object(world_object):
     def __init__(self, world, hover_height, radius):
         world_object.__init__(self, world)
+
+        # Height of the centre of the object over the floor
         self.hover_height = hover_height
+
+        # Used for rendering only?
         self.radius = radius
-        # Gravity belongs to the object. This way we can have crazy
-        # physics fun with portals changing the direction of gravity
-        self.gravity = v(0.0, -10.0, 0.0)
+
+        # These vectors allow us to change the size and orientation
+        # of the object wrt the world by, e.g., going through a portal.
+        # uy also controls the direction of gravity.
+        (self.ux, self.uy, self.uz) = (v(1, 0, 0),
+                                       v(0, 1, 0),
+                                       v(0, 0, 1))
+
+        # Current velocity of the object
         self.vel = v(0.0,0.0,0.0)
+        # Whether the object is physically supported (standing on
+        # something solid)
         self.supported = False
     
     def physically_supported(self):
         return self.supported
 
     def advance(self, t):
-        #world_object.advance(self, t)
-
         if self.world.physics_on:
-            self.vel += self.gravity * t / 1000.0
+            self.vel += self.uy * self.world.gravity * t / 1000.0
 
             (nx,ny,nz) = (self.x, self.y, self.z)
             nx += self.vel[0] * t / 1000.0
             ny += self.vel[1] * t / 1000.0
             nz += self.vel[2] * t / 1000.0
 
-            self.y -= self.hover_height
             (self.x, self.y, self.z) = self.world.legal_move(self,
-                nx, ny-self.hover_height, nz)
-            self.y += self.hover_height
+                nx, ny, nz)
 
             if self.x != nx:
                 self.vel[0] = 0.0
             if self.y != ny:
                 self.vel[1] = 0.0
+                # FIXME: assumes down is in the Y direction!
                 self.supported = True
             else:
                 self.supported = False
@@ -104,7 +116,9 @@ class entity(physical_object):
     def __init__(self, *args):
         physical_object.__init__(self, *args)
     def jump(self):
-        self.vel[1] = JUMP_VELOCITY
+        self.vel[0] = JUMP_VELOCITY * self.uy[0]
+        self.vel[1] = JUMP_VELOCITY * self.uy[1]
+        self.vel[2] = JUMP_VELOCITY * self.uy[2]
 
 class camera(world_object):
     def __init__(self, world):
@@ -208,6 +222,7 @@ class world(object):
         self.player = player_character(self, 0.5, 1.5, 0.5)
         self.camera = self.player
         self.entities = [self.player]
+        self.gravity = -10
 
         self.physics_on = True
 
@@ -221,13 +236,13 @@ class world(object):
     def z_size(self): return self.mapdat[2]
     def edge_type(self): return self.mapdat[3]
     def grid_get(self, x, y, z):
-        return self.mapdat[GRID_OFF + int(x) +
-            int(y) * self.x_size() +
-            int(z) * self.x_size() * self.y_size()]
+        return self.mapdat[GRID_OFF + floor(x) +
+            floor(y) * self.x_size() +
+            floor(z) * self.x_size() * self.y_size()]
     def grid_set(self, x, y, z, v):
-        self.mapdat[GRID_OFF + int(x) +
-            int(y) * self.x_size() +
-            int(z) * self.x_size() * self.y_size()] = v
+        self.mapdat[GRID_OFF + floor(x) +
+            floor(y) * self.x_size() +
+            floor(z) * self.x_size() * self.y_size()] = v
     def get_portal_off(self):
         return GRID_OFF + self.x_size() * self.y_size() * self.z_size()
     def get_portal(self, i):
