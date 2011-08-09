@@ -85,7 +85,7 @@ def blocking(w, x, y, z):
     return x < 0 or x >= w.x_size() or y < 0 or y >= w.y_size() or \
       z < 0 or z >= w.z_size() or world.blocking(w.grid_get(x,y,z))
 
-def climb_step(w, obj, x, y, z, bx, by, bz):
+def _climb_step(w, obj, x, y, z, bx, by, bz):
     if obj.uy[0] == 0 and obj.uy[2] == 0:
         d = y-by
         if sign(obj.uy[1]) == 1:
@@ -149,19 +149,57 @@ def legal_move(w, obj, x, y, z):
                          z + sign(obj.uz[2]))
         if blocking(w, bx,by,bz) and not blocking(w, bxs,bys,bzs):
             (x, y, z, bx, by, bz) = \
-              climb_step(w, obj, x, y, z, bx, by, bz)
+              _climb_step(w, obj, x, y, z, bx, by, bz)
 
-        blocked = [False]
-        def visit_cell(x,y,z):
-            if blocking(w,x,y,z):
-                blocked[0] = True
-                return False
-            return True
-        # Visit every grid cell from the foot to the centre of the
-        # object. If any are blocking cells, don't allow the move.
-        # FIXME: trace_from_to won't work for portals
-        trace_from_to(visit_cell, (bx,by,bz), (x,y,z))
-        if blocked[0]:
-            (x,y,z) = (obj.x, obj.y, obj.z)
+        (x, y, z) = _move_with_slide(w, obj, x, y, z, bx, by, bz)
 
-    return (x,y,z)
+    return (x, y, z)
+
+def _select(x, y, z, ox, oy, oz, d):
+    if d == 'x':
+        return (x, oy, oz)
+    elif d == 'y':
+        return (ox, y, oz)
+    elif d == 'z':
+        return (ox, oy, z)
+    elif d == 'a':
+        return (x, y, z)
+
+def _move_with_slide(w, obj, x, y, z, bx, by, bz):
+    """
+    Calculate the end position for a move to (x,y,z) (with feet at (bx,by,bz))
+    for a given world w and object obj.
+    If the move is diagonal to a wall, this will "slide" along parallel to the
+    wall.
+    """
+    (obx,oby,obz) = (bx - x + obj.x, by - y + obj.y, bz - z + obj.z)
+
+    blocked = [False]
+    def visit_cell(x,y,z):
+        if blocking(w,x,y,z):
+            blocked[0] = True
+            return False
+        return True
+
+    has_changed = True
+    dimensions_not_moved = ['x','y','z']
+    (rx,ry,rz) = (obj.x, obj.y, obj.z)
+    # Try every ordering of x, y, z to figure out which dimensions of the
+    # movement to apply first.
+    while has_changed:
+        has_changed = False
+        dimensions = []
+        dimensions.extend(dimensions_not_moved)
+        for dim in dimensions:
+            # Visit every grid cell from the foot to the centre of the
+            # object. If any are blocking cells, don't allow the move.
+            # FIXME: trace_from_to won't work for portals
+            (tx,ty,tz) = _select(x,y,z,rx,ry,rz, dim)
+            (tbx, tby, tbz) = (bx - x + tx, by - y + ty, bz - z + tz)
+            blocked[0] = False
+            trace_from_to(visit_cell, (tbx,tby,tbz), (tx,ty,tz))
+            if not blocked[0]:
+                has_changed = True
+                dimensions_not_moved.remove(dim)
+                (rx,ry,rz) = _select(x,y,z,rx,ry,rz, dim)
+    return (rx,ry,rz)

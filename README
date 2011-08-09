@@ -60,8 +60,6 @@ Technical Notes:
 TODO:
    * Gravity / physics
       * Possibly hit-detection with volumes instead of line-segments?
-      * Should test components of movement individually so that sliding
-          along a wall is possible.
       * walking through portals
          * reflecting player character
    * Self-viewing / entity rendering
