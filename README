@@ -30,11 +30,7 @@ Command-Line Options:
       * Raises framerate limit from 50fps to 1000fps.
 
 License:
-   * GPLv3
-      * In future I may want to dual-license this project. If you submit 
-        patches / pull requests to me, please mention whether you're
-        transferring copyright ownership, submitting under a permissive
-        license (e.g. X11, Modified-BSD), or dual-licensing it to me.
+   * BSD-3 (see LICENSE file)
 
 Technical Notes:
    * Lighting:
